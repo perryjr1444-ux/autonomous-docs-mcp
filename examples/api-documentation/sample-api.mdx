@@ -1,0 +1,451 @@
+---
+title: "Sample API Documentation"
+description: "Example of auto-generated API documentation with Mintlify components"
+icon: "code"
+---
+
+# API Reference Example
+
+This is an example of auto-generated API documentation created by Autonomous Documentation MCP.
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="lock" href="#authentication">
+    Secure your API requests
+  </Card>
+  <Card title="User Endpoints" icon="users" href="#user-endpoints">
+    Manage user accounts
+  </Card>
+  <Card title="Data Operations" icon="database" href="#data-operations">
+    CRUD operations
+  </Card>
+  <Card title="Error Handling" icon="triangle-exclamation" href="#error-handling">
+    Handle API errors
+  </Card>
+</CardGroup>
+
+## Authentication
+
+All API requests require authentication using Bearer tokens.
+
+<CodeGroup>
+
+```typescript TypeScript
+const client = new ApiClient({
+  apiKey: process.env.API_KEY,
+  baseUrl: 'https://api.example.com'
+});
+
+// All requests automatically include authentication
+const user = await client.users.get('123');
+```
+
+```python Python
+from api_client import ApiClient
+
+client = ApiClient(
+    api_key=os.environ['API_KEY'],
+    base_url='https://api.example.com'
+)
+
+# All requests automatically include authentication
+user = client.users.get('123')
+```
+
+```bash cURL
+curl -X GET "https://api.example.com/v1/users/123" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json"
+```
+
+</CodeGroup>
+
+<Note>
+  Store your API key securely and never commit it to version control.
+</Note>
+
+## User Endpoints
+
+### GET /users/:id
+
+Retrieve a user by ID.
+
+<ParamField path="id" type="string" required>
+  The unique identifier for the user
+</ParamField>
+
+**Response:**
+
+```json
+{
+  "id": "123",
+  "name": "John Doe",
+  "email": "john@example.com",
+  "created_at": "2025-01-01T00:00:00Z"
+}
+```
+
+<Tabs>
+  <Tab title="200 Success">
+    User retrieved successfully.
+    ```json
+    {
+      "status": "success",
+      "data": {
+        "id": "123",
+        "name": "John Doe",
+        "email": "john@example.com"
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="404 Not Found">
+    User not found.
+    ```json
+    {
+      "status": "error",
+      "error": {
+        "code": "USER_NOT_FOUND",
+        "message": "User with ID '123' does not exist"
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="401 Unauthorized">
+    Invalid or missing authentication token.
+    ```json
+    {
+      "status": "error",
+      "error": {
+        "code": "UNAUTHORIZED",
+        "message": "Invalid authentication token"
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### POST /users
+
+Create a new user.
+
+<ParamField body="name" type="string" required>
+  The user's full name
+</ParamField>
+
+<ParamField body="email" type="string" required>
+  The user's email address (must be unique)
+</ParamField>
+
+<ParamField body="role" type="string" default="user">
+  The user's role: `admin`, `user`, or `guest`
+</ParamField>
+
+**Example Request:**
+
+```json
+{
+  "name": "Jane Smith",
+  "email": "jane@example.com",
+  "role": "user"
+}
+```
+
+**Example Response:**
+
+```json
+{
+  "status": "success",
+  "data": {
+    "id": "124",
+    "name": "Jane Smith",
+    "email": "jane@example.com",
+    "role": "user",
+    "created_at": "2025-11-02T12:00:00Z"
+  }
+}
+```
+
+<Warning>
+  Email addresses must be unique. Creating a user with an existing email will return a `409 Conflict` error.
+</Warning>
+
+### PUT /users/:id
+
+Update an existing user.
+
+<ParamField path="id" type="string" required>
+  The unique identifier for the user
+</ParamField>
+
+<ParamField body="name" type="string">
+  The user's new name (optional)
+</ParamField>
+
+<ParamField body="email" type="string">
+  The user's new email address (optional)
+</ParamField>
+
+**Example:**
+
+<CodeGroup>
+
+```typescript TypeScript
+const updatedUser = await client.users.update('123', {
+  name: 'John Updated',
+  email: 'john.updated@example.com'
+});
+```
+
+```python Python
+updated_user = client.users.update('123', {
+    'name': 'John Updated',
+    'email': 'john.updated@example.com'
+})
+```
+
+</CodeGroup>
+
+### DELETE /users/:id
+
+Delete a user by ID.
+
+<ParamField path="id" type="string" required>
+  The unique identifier for the user
+</ParamField>
+
+**Response:**
+
+```json
+{
+  "status": "success",
+  "message": "User deleted successfully"
+}
+```
+
+<Tip>
+  Deleted users cannot be recovered. Consider implementing soft deletes for production applications.
+</Tip>
+
+## Data Operations
+
+### GET /data
+
+List all data entries with pagination.
+
+<ParamField query="page" type="number" default="1">
+  Page number for pagination
+</ParamField>
+
+<ParamField query="limit" type="number" default="20">
+  Number of items per page (max: 100)
+</ParamField>
+
+<ParamField query="sort" type="string" default="created_at">
+  Sort field: `created_at`, `updated_at`, or `name`
+</ParamField>
+
+<ParamField query="order" type="string" default="desc">
+  Sort order: `asc` or `desc`
+</ParamField>
+
+**Example:**
+
+```bash
+GET /v1/data?page=1&limit=20&sort=created_at&order=desc
+```
+
+**Response:**
+
+```json
+{
+  "status": "success",
+  "data": [
+    {
+      "id": "data-1",
+      "name": "Item 1",
+      "created_at": "2025-11-02T12:00:00Z"
+    },
+    {
+      "id": "data-2",
+      "name": "Item 2",
+      "created_at": "2025-11-01T12:00:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 42,
+    "pages": 3
+  }
+}
+```
+
+## Error Handling
+
+The API uses conventional HTTP response codes to indicate success or failure.
+
+<AccordionGroup>
+  <Accordion title="2xx Success Codes">
+    - `200 OK` - Request succeeded
+    - `201 Created` - Resource created successfully
+    - `204 No Content` - Request succeeded with no response body
+  </Accordion>
+
+  <Accordion title="4xx Client Error Codes">
+    - `400 Bad Request` - Invalid request parameters
+    - `401 Unauthorized` - Invalid or missing authentication
+    - `403 Forbidden` - Authenticated but not authorized
+    - `404 Not Found` - Resource does not exist
+    - `409 Conflict` - Resource conflict (e.g., duplicate email)
+    - `422 Unprocessable Entity` - Validation error
+    - `429 Too Many Requests` - Rate limit exceeded
+  </Accordion>
+
+  <Accordion title="5xx Server Error Codes">
+    - `500 Internal Server Error` - Something went wrong on our end
+    - `503 Service Unavailable` - Temporary service outage
+  </Accordion>
+</AccordionGroup>
+
+### Error Response Format
+
+All errors follow this consistent format:
+
+```json
+{
+  "status": "error",
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable error message",
+    "details": {
+      "field": "Additional error context"
+    }
+  }
+}
+```
+
+**Example Validation Error:**
+
+```json
+{
+  "status": "error",
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid input data",
+    "details": {
+      "email": "Email address is not valid",
+      "name": "Name must be at least 2 characters"
+    }
+  }
+}
+```
+
+## Rate Limiting
+
+API requests are rate limited to ensure fair usage.
+
+<CardGroup cols={3}>
+  <Card title="Free Tier" icon="user">
+    1,000 requests/hour
+  </Card>
+  <Card title="Pro Tier" icon="star">
+    10,000 requests/hour
+  </Card>
+  <Card title="Enterprise" icon="building">
+    Unlimited
+  </Card>
+</CardGroup>
+
+Rate limit information is included in response headers:
+
+```
+X-RateLimit-Limit: 1000
+X-RateLimit-Remaining: 999
+X-RateLimit-Reset: 1730620800
+```
+
+<Warning>
+  When rate limited, the API returns `429 Too Many Requests`. Implement exponential backoff in your client.
+</Warning>
+
+## Webhooks
+
+Subscribe to real-time events via webhooks.
+
+### Supported Events
+
+- `user.created` - New user registered
+- `user.updated` - User profile updated
+- `user.deleted` - User account deleted
+- `data.created` - New data entry created
+- `data.updated` - Data entry updated
+
+### Webhook Payload
+
+```json
+{
+  "event": "user.created",
+  "data": {
+    "id": "123",
+    "name": "John Doe",
+    "email": "john@example.com"
+  },
+  "timestamp": "2025-11-02T12:00:00Z",
+  "signature": "sha256=..."
+}
+```
+
+<Tip>
+  Always verify webhook signatures to ensure authenticity.
+</Tip>
+
+## Best Practices
+
+<Steps>
+  <Step title="Use API Keys Securely">
+    Store API keys in environment variables, never in code.
+  </Step>
+  <Step title="Implement Retry Logic">
+    Use exponential backoff for failed requests.
+  </Step>
+  <Step title="Handle Rate Limits">
+    Monitor rate limit headers and throttle requests accordingly.
+  </Step>
+  <Step title="Validate Input">
+    Always validate data before sending API requests.
+  </Step>
+  <Step title="Use Pagination">
+    Use pagination for list endpoints to avoid large responses.
+  </Step>
+</Steps>
+
+## SDK Libraries
+
+Official SDK libraries are available for multiple languages:
+
+<CardGroup cols={3}>
+  <Card title="TypeScript" icon="js" href="https://github.com/example/sdk-typescript">
+    npm install @example/sdk
+  </Card>
+  <Card title="Python" icon="python" href="https://github.com/example/sdk-python">
+    pip install example-sdk
+  </Card>
+  <Card title="Go" icon="golang" href="https://github.com/example/sdk-go">
+    go get github.com/example/sdk
+  </Card>
+</CardGroup>
+
+## Support
+
+Need help with the API?
+
+- [API Status](https://status.example.com) - Check service status
+- [Community Forum](https://forum.example.com) - Ask questions
+- [Contact Support](mailto:support@example.com) - Get direct help
+
+---
+
+<Info>
+  This documentation was auto-generated by Autonomous Documentation MCP.
+  Last updated: 2025-11-02
+</Info>

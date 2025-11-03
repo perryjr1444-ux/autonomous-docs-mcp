@@ -1,0 +1,48 @@
+#!/bin/bash
+# Pre-commit hook for documentation validation
+
+set -e
+
+echo "Running pre-commit documentation checks..."
+
+# Check if docs directory exists
+if [ ! -d "docs" ]; then
+  echo "No docs directory found, skipping validation"
+  exit 0
+fi
+
+# Get list of staged doc files
+STAGED_DOCS=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(md|mdx)$' || true)
+
+if [ -z "$STAGED_DOCS" ]; then
+  echo "No documentation files staged, skipping validation"
+  exit 0
+fi
+
+# Run validation scripts
+HOOKS_DIR=".git/hooks/pre-commit.d"
+
+if [ -d "$HOOKS_DIR" ]; then
+  for hook in "$HOOKS_DIR"/*; do
+    if [ -x "$hook" ]; then
+      echo "Running $(basename "$hook")..."
+      "$hook" || exit 1
+    fi
+  done
+fi
+
+# Run auto-fix if available
+if [ -f "scripts/docs-autofix.js" ]; then
+  echo "Running auto-fix..."
+  node scripts/docs-autofix.js "$STAGED_DOCS"
+  
+  # Re-stage fixed files
+  for file in $STAGED_DOCS; do
+    if [ -f "$file" ]; then
+      git add "$file"
+    fi
+  done
+fi
+
+echo "✓ All pre-commit checks passed"
+exit 0

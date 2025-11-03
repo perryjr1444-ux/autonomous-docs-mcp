@@ -1,0 +1,84 @@
+# Source files (compiled versions in dist/)
+src/
+*.ts
+!*.d.ts
+
+# Tests
+tests/
+*.test.js
+*.spec.js
+coverage/
+.nyc_output/
+
+# Development files
+.git/
+.github/
+.vscode/
+.idea/
+*.log
+.DS_Store
+.env
+.env.*
+
+# Documentation source (keep compiled docs)
+docs/
+examples/
+*.md
+!README.md
+!LICENSE
+
+# Build files
+tsconfig.json
+.eslintrc.*
+.prettierrc
+.editorconfig
+
+# CI/CD
+.travis.yml
+.gitlab-ci.yml
+.circleci/
+azure-pipelines.yml
+
+# Temporary files
+*.swp
+*.swo
+*~
+.tmp/
+temp/
+
+# Coordination and orchestration
+.coordination/
+.orchestration/
+aggregation-system/
+analysis-reports/
+audit-reports/
+cicd-package/
+integration-package/
+
+# Agent files
+*-agent.md
+
+# Generated documentation
+docs-output/
+docs-template/
+
+# Build artifacts
+*.tsbuildinfo
+
+# Package manager
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Additional documentation that's not needed in npm package
+CONTRIBUTING.md
+CHANGELOG.md
+QUICKSTART.md
+QUICK-START-GUIDE.md
+INDEX.md
+META-DOCUMENTATION.md
+MASTER-ORCHESTRATION-REPORT.md
+ORCHESTRATION-README.md
+ORCHESTRATION-SUMMARY.md
+USAGE-PATTERNS.md
+VISUAL-ROADMAP.md
