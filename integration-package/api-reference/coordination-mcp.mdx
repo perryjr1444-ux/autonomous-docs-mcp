@@ -1,0 +1,728 @@
+---
+title: 'Coordination MCP API'
+description: 'Complete API reference for claude-coordination-mcp server tools'
+icon: 'plug'
+---
+
+# Coordination MCP API Reference
+
+Complete reference for all tools provided by the `claude-coordination-mcp` server.
+
+## Agent Lifecycle
+
+### coord_register_agent
+
+Register this Claude Code instance as a meta-agent in the coordination registry.
+
+**Signature:**
+```typescript
+coord_register_agent(
+  task_description: string,
+  capabilities?: string[]
+): Promise<AgentRegistration>
+```
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `task_description` | string | Yes | Human-readable description of current task |
+| `capabilities` | string[] | No | List of agent capabilities (e.g., ["security", "testing"]) |
+
+**Returns:**
+```typescript
+{
+  agent_id: string;          // Unique agent identifier
+  session_id: string;        // Current session ID
+  registered_at: number;     // Unix timestamp
+  status: "active";
+}
+```
+
+**Example:**
+```typescript
+const registration = await coord_register_agent(
+  "Processing security vulnerabilities",
+  ["security", "code-review"]
+);
+console.log(`Registered as ${registration.agent_id}`);
+```
+
+---
+
+### coord_heartbeat
+
+Send heartbeat signal to maintain active status. Agents without heartbeat for 60s are marked stale.
+
+**Signature:**
+```typescript
+coord_heartbeat(
+  task_description?: string
+): Promise<void>
+```
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `task_description` | string | No | Updated task description |
+
+**Example:**
+```typescript
+// Keep agent alive
+await coord_heartbeat("Still processing user authentication");
+```
+
+**Best Practice:** Call every 30-45 seconds during active work.
+
+---
+
+### coord_list_active_agents
+
+List all active Claude Code instances (agents with heartbeat in last 60s).
+
+**Signature:**
+```typescript
+coord_list_active_agents(): Promise<ActiveAgent[]>
+```
+
+**Returns:**
+```typescript
+{
+  agent_id: string;
+  session_id: string;
+  last_heartbeat: number;    // Unix timestamp
+  status: string;
+  current_task: string | null;
+  is_meta_agent: boolean;
+  capabilities: string[];
+  workload: number;          // Number of active tasks
+}[]
+```
+
+**Example:**
+```typescript
+const agents = await coord_list_active_agents();
+console.log(`${agents.length} active agents:`);
+agents.forEach(a => {
+  console.log(`- ${a.agent_id}: ${a.current_task} (load: ${a.workload})`);
+});
+```
+
+---
+
+## File Locking
+
+### coord_acquire_lock
+
+Acquire exclusive lock on a file before modifying it. Prevents concurrent modifications.
+
+**Signature:**
+```typescript
+coord_acquire_lock(
+  file_path: string,
+  operation: "read" | "write" | "delete"
+): Promise<LockResult>
+```
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `file_path` | string | Yes | Absolute path to file |
+| `operation` | string | Yes | Type of operation: "read", "write", or "delete" |
+
+**Returns:**
+```typescript
+{
+  success: boolean;
+  lock_holder?: string;      // If locked by another agent
+  message: string;
+}
+```
+
+**Example:**
+```typescript
+const lock = await coord_acquire_lock(
+  "/Users/me/project/src/auth.py",
+  "write"
+);
+
+if (lock.success) {
+  // Safe to modify
+} else {
+  console.log(`Locked by ${lock.lock_holder}`);
+}
+```
+
+**Notes:**
+- Locks auto-expire after 5 minutes
+- Always release locks in `finally` blocks
+- Check conflicts before acquiring
+
+---
+
+### coord_release_lock
+
+Release lock on a file after modifications complete.
+
+**Signature:**
+```typescript
+coord_release_lock(
+  file_path: string
+): Promise<void>
+```
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `file_path` | string | Yes | Absolute path to file |
+
+**Example:**
+```typescript
+try {
+  await coord_acquire_lock("/path/to/file.py", "write");
+  // Modify file
+} finally {
+  await coord_release_lock("/path/to/file.py");
+}
+```
+
+---
+
+### coord_check_conflicts
+
+Check for recent changes by other agents on a file (last 5 minutes).
+
+**Signature:**
+```typescript
+coord_check_conflicts(
+  file_path: string
+): Promise<FileChange[]>
+```
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `file_path` | string | Yes | File to check for conflicts |
+
+**Returns:**
+```typescript
+{
+  agent_id: string;
+  change_type: string;
+  timestamp: number;
+  file_hash?: string;
+}[]
+```
+
+**Example:**
+```typescript
+const conflicts = await coord_check_conflicts("/path/to/file.py");
+if (conflicts.length > 0) {
+  console.log("Warning: Recent changes detected:");
+  conflicts.forEach(c => {
+    console.log(`- ${c.agent_id} ${c.change_type} at ${new Date(c.timestamp * 1000)}`);
+  });
+}
+```
+
+---
+
+### coord_record_change
+
+Record a change made to a file for conflict detection.
+
+**Signature:**
+```typescript
+coord_record_change(
+  file_path: string,
+  change_type: string,
+  file_hash?: string
+): Promise<void>
+```
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `file_path` | string | Yes | File that was modified |
+| `change_type` | string | Yes | Description of change |
+| `file_hash` | string | No | File content hash (for integrity) |
+
+**Example:**
+```typescript
+await coord_record_change(
+  "/path/to/file.py",
+  "refactored authentication logic"
+);
+```
+
+---
+
+### coord_declare_intention
+
+Declare intention to modify a file (for visibility, not blocking).
+
+**Signature:**
+```typescript
+coord_declare_intention(
+  file_path: string,
+  operation: string
+): Promise<void>
+```
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `file_path` | string | Yes | File to be modified |
+| `operation` | string | Yes | Planned operation |
+
+**Example:**
+```typescript
+await coord_declare_intention(
+  "/src/critical.py",
+  "major refactoring"
+);
+// Other agents can see this intention
+```
+
+---
+
+## Task Management
+
+### coord_delegate_task
+
+Create a task for another agent to claim and execute.
+
+**Signature:**
+```typescript
+coord_delegate_task(
+  task_type: string,
+  task_description: string,
+  priority?: number,
+  dependencies?: string[],
+  rollback_data?: string
+): Promise<string>
+```
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `task_type` | string | Yes | Task category (e.g., "implement", "test", "document") |
+| `task_description` | string | Yes | Detailed task description |
+| `priority` | number | No | Priority 1-10 (1=highest, default=5) |
+| `dependencies` | string[] | No | Array of task_ids that must complete first |
+| `rollback_data` | string | No | JSON string with rollback information |
+
+**Returns:** Task ID (string)
+
+**Example:**
+```typescript
+const authTask = await coord_delegate_task(
+  "implement",
+  "Add JWT authentication to API endpoints",
+  2, // High priority
+  [], // No dependencies
+  JSON.stringify({ backup: "/tmp/backup.sql" })
+);
+
+const testTask = await coord_delegate_task(
+  "test",
+  "Write integration tests for authentication",
+  5,
+  [authTask] // Wait for auth implementation
+);
+```
+
+---
+
+### coord_claim_task
+
+Claim the next available task from the queue.
+
+**Signature:**
+```typescript
+coord_claim_task(
+  max_priority?: number
+): Promise<Task | null>
+```
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `max_priority` | number | No | Only claim tasks with priority <= this value |
+
+**Returns:**
+```typescript
+{
+  task_id: string;
+  parent_agent_id: string;
+  task_type: string;
+  task_description: string;
+  priority: number;
+  dependencies: string[];
+  created_at: number;
+  rollback_data?: string;
+} | null
+```
+
+**Example:**
+```typescript
+// Claim any available task
+const task = await coord_claim_task();
+
+if (task) {
+  console.log(`Working on: ${task.task_description}`);
+  // Execute task...
+  await coord_complete_task(task.task_id, { status: "success" });
+}
+```
+
+---
+
+### coord_complete_task
+
+Mark a task as completed with optional results.
+
+**Signature:**
+```typescript
+coord_complete_task(
+  task_id: string,
+  result?: object
+): Promise<void>
+```
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `task_id` | string | Yes | Task identifier |
+| `result` | object | No | Task results/output |
+
+**Example:**
+```typescript
+await coord_complete_task(task.task_id, {
+  status: "success",
+  files_modified: ["auth.py", "tests/test_auth.py"],
+  tests_passed: 42
+});
+```
+
+---
+
+### coord_fail_task
+
+Mark a task as failed with error details.
+
+**Signature:**
+```typescript
+coord_fail_task(
+  task_id: string,
+  error: string
+): Promise<void>
+```
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `task_id` | string | Yes | Task identifier |
+| `error` | string | Yes | Error description |
+
+**Example:**
+```typescript
+try {
+  // Attempt task
+} catch (err) {
+  await coord_fail_task(task.task_id, err.message);
+}
+```
+
+---
+
+### coord_list_tasks
+
+List all tasks with optional status filter.
+
+**Signature:**
+```typescript
+coord_list_tasks(
+  status?: "pending" | "in_progress" | "completed" | "failed"
+): Promise<Task[]>
+```
+
+**Example:**
+```typescript
+// List all pending tasks
+const pending = await coord_list_tasks("pending");
+console.log(`${pending.length} tasks awaiting execution`);
+```
+
+---
+
+## Messaging
+
+### coord_send_message
+
+Send message to another agent or broadcast to all.
+
+**Signature:**
+```typescript
+coord_send_message(
+  to_agent_id: string,
+  message_type: string,
+  content: object
+): Promise<string>
+```
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `to_agent_id` | string | Yes | Target agent ID or "broadcast" |
+| `message_type` | string | Yes | Message category |
+| `content` | object | Yes | Message payload |
+
+**Returns:** Message ID (string)
+
+**Example:**
+```typescript
+// Broadcast to all agents
+await coord_send_message(
+  "broadcast",
+  "code_review_request",
+  {
+    file: "src/security.py",
+    urgency: "high",
+    line_range: [42, 67]
+  }
+);
+
+// Direct message
+await coord_send_message(
+  "claude-12345-timestamp",
+  "task_delegation",
+  { task_id: "test-auth-01" }
+);
+```
+
+---
+
+### coord_read_messages
+
+Read all unread messages for this agent.
+
+**Signature:**
+```typescript
+coord_read_messages(): Promise<Message[]>
+```
+
+**Returns:**
+```typescript
+{
+  message_id: string;
+  from_agent_id: string;
+  to_agent_id: string;
+  message_type: string;
+  content: object;
+  timestamp: number;
+}[]
+```
+
+**Example:**
+```typescript
+const messages = await coord_read_messages();
+for (const msg of messages) {
+  console.log(`From ${msg.from_agent_id}: ${msg.message_type}`);
+  console.log(msg.content);
+}
+```
+
+---
+
+## Resource Management
+
+### coord_reserve_resources
+
+Reserve system resources for a task.
+
+**Signature:**
+```typescript
+coord_reserve_resources(
+  cpu_percent: number,
+  memory_mb: number
+): Promise<string>
+```
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `cpu_percent` | number | Yes | Required CPU percentage |
+| `memory_mb` | number | Yes | Required memory in MB |
+
+**Returns:** Reservation ID (string)
+
+**Example:**
+```typescript
+const reservationId = await coord_reserve_resources(25, 2048);
+// Reserve 25% CPU and 2GB RAM
+
+try {
+  // Run resource-intensive task
+} finally {
+  await coord_release_resources(reservationId);
+}
+```
+
+---
+
+### coord_release_resources
+
+Release previously reserved resources.
+
+**Signature:**
+```typescript
+coord_release_resources(
+  reservation_id: string
+): Promise<void>
+```
+
+---
+
+### coord_get_resource_status
+
+Get current system resource status.
+
+**Signature:**
+```typescript
+coord_get_resource_status(): Promise<ResourceStatus>
+```
+
+**Returns:**
+```typescript
+{
+  timestamp: string;
+  system: {
+    cpu_percent: number;
+    cpu_count: number;
+    memory_total_gb: number;
+    memory_used_gb: number;
+    memory_percent: number;
+    disk_total_gb: number;
+    disk_used_gb: number;
+    disk_percent: number;
+  };
+  claude_instances: Array<{
+    pid: number;
+    cpu_percent: number;
+    memory_percent: number;
+  }>;
+  load_level: "low" | "medium" | "high" | "critical";
+}
+```
+
+**Example:**
+```typescript
+const status = await coord_get_resource_status();
+if (status.load_level === "critical") {
+  console.log("System under heavy load, deferring non-critical tasks");
+}
+```
+
+---
+
+## Error Handling
+
+All coordination tools follow consistent error patterns:
+
+```typescript
+try {
+  await coord_acquire_lock("/path/to/file.py", "write");
+} catch (error) {
+  if (error.code === "LOCK_TIMEOUT") {
+    // Lock held by another agent
+    console.log(`Lock held by: ${error.lock_holder}`);
+  } else if (error.code === "AGENT_NOT_REGISTERED") {
+    // Agent not registered
+    await coord_register_agent("Recovery");
+  } else {
+    // Other errors
+    throw error;
+  }
+}
+```
+
+## Type Definitions
+
+```typescript
+interface AgentRegistration {
+  agent_id: string;
+  session_id: string;
+  registered_at: number;
+  status: "active";
+}
+
+interface ActiveAgent {
+  agent_id: string;
+  session_id: string;
+  last_heartbeat: number;
+  status: string;
+  current_task: string | null;
+  is_meta_agent: boolean;
+  capabilities: string[];
+  workload: number;
+}
+
+interface LockResult {
+  success: boolean;
+  lock_holder?: string;
+  message: string;
+}
+
+interface FileChange {
+  agent_id: string;
+  change_type: string;
+  timestamp: number;
+  file_hash?: string;
+}
+
+interface Task {
+  task_id: string;
+  parent_agent_id: string;
+  assigned_agent_id?: string;
+  task_type: string;
+  task_description: string;
+  status: "pending" | "in_progress" | "completed" | "failed";
+  priority: number;
+  dependencies: string[];
+  created_at: number;
+  started_at?: number;
+  completed_at?: number;
+  result?: object;
+  error?: string;
+  rollback_data?: string;
+}
+
+interface Message {
+  message_id: string;
+  from_agent_id: string;
+  to_agent_id: string;
+  message_type: string;
+  content: object;
+  timestamp: number;
+}
+
+interface ResourceStatus {
+  timestamp: string;
+  system: {
+    cpu_percent: number;
+    cpu_count: number;
+    memory_total_gb: number;
+    memory_used_gb: number;
+    memory_percent: number;
+    disk_total_gb: number;
+    disk_used_gb: number;
+    disk_percent: number;
+  };
+  claude_instances: Array<{
+    pid: number;
+    cpu_percent: number;
+    memory_percent: number;
+  }>;
+  load_level: "low" | "medium" | "high" | "critical";
+}
+```

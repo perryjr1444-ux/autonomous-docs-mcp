@@ -1,0 +1,446 @@
+---
+title: 'Multi-Agent Coordination'
+description: 'Coordinate multiple Claude Code instances for parallel development'
+icon: 'network-wired'
+---
+
+# Multi-Agent Coordination System
+
+The Claude Coordination MCP enables multiple Claude Code instances to work together safely and efficiently on the same codebase.
+
+## Overview
+
+When multiple Claude instances run simultaneously, coordination prevents:
+- File conflicts from simultaneous edits
+- Duplicate work on the same tasks
+- Resource contention
+- Lost changes
+
+## Architecture
+
+### Components
+
+**1. MCP Coordination Server**
+- Real-time agent registry
+- File locking system
+- Task delegation queue
+- Inter-agent messaging
+- Resource reservation
+
+**2. Instance Registry**
+- Tracks all active Claude instances
+- Heartbeat monitoring (60s timeout)
+- Status and task tracking
+- Agent capability discovery
+
+**3. Task Queue**
+- Priority-based task distribution
+- Dependency management
+- Resource-aware assignment
+- Automatic load balancing
+
+## Quick Start
+
+### 1. Enable Coordination MCP
+
+Ensure `claude-coordination-mcp` is in your `.claude.json`:
+
+```json
+{
+  "mcpServers": {
+    "claude-coordination": {
+      "command": "node",
+      "args": ["/Users/c0nfig/claude-coordination-mcp/dist/index.js"]
+    }
+  }
+}
+```
+
+### 2. Register Your Instance
+
+Each Claude instance auto-registers on startup via SessionStart hook:
+
+```bash
+# Automatic via hook
+# Manual registration:
+coord_register_agent("Working on feature X")
+```
+
+### 3. Check Active Instances
+
+```bash
+# List all active agents
+coord_list_active_agents()
+```
+
+### 4. Coordinate File Access
+
+Before modifying files:
+
+```bash
+# Acquire lock
+coord_acquire_lock("/path/to/file.py")
+
+# Make changes
+Edit(file_path="/path/to/file.py", ...)
+
+# Release lock
+coord_release_lock("/path/to/file.py")
+
+# Record change for conflict detection
+coord_record_change("/path/to/file.py", "updated function")
+```
+
+## MCP Tools Reference
+
+### Agent Management
+
+#### `coord_register_agent`
+Register this instance in coordination system.
+
+**Parameters:**
+- `task_description` (string): Current task description
+
+**Returns:** Agent registration data with unique agent_id
+
+#### `coord_heartbeat`
+Update heartbeat to stay active.
+
+**Parameters:**
+- `task_description` (string, optional): Updated task description
+
+#### `coord_list_active_agents`
+List all active Claude instances.
+
+**Returns:** Array of active agents with status
+
+### File Locking
+
+#### `coord_acquire_lock`
+Acquire exclusive lock on file.
+
+**Parameters:**
+- `file_path` (string): Absolute file path
+- `operation` (string): Operation type (read/write/delete)
+
+**Returns:** Lock acquisition status
+
+#### `coord_release_lock`
+Release file lock.
+
+**Parameters:**
+- `file_path` (string): Absolute file path
+
+#### `coord_check_conflicts`
+Check for recent changes by other agents.
+
+**Parameters:**
+- `file_path` (string): File to check
+
+**Returns:** Recent changes in last 5 minutes
+
+### Task Delegation
+
+#### `coord_delegate_task`
+Create task for another agent to claim.
+
+**Parameters:**
+- `task_type` (string): Type of task
+- `task_description` (string): Detailed description
+- `priority` (number): 1-10 (1=highest)
+- `dependencies` (array): List of task_ids that must complete first
+
+**Returns:** Task ID
+
+#### `coord_claim_task`
+Claim next available task.
+
+**Parameters:**
+- `max_priority` (number, optional): Only claim tasks with priority <= this
+
+**Returns:** Claimed task details or null
+
+#### `coord_complete_task`
+Mark task as completed.
+
+**Parameters:**
+- `task_id` (string): Task identifier
+- `result` (object, optional): Task results
+
+### Messaging
+
+#### `coord_send_message`
+Send message to another agent.
+
+**Parameters:**
+- `to_agent_id` (string): Target agent (or "broadcast")
+- `message_type` (string): Message category
+- `content` (object): Message payload
+
+#### `coord_read_messages`
+Read unread messages for this agent.
+
+**Returns:** Array of messages
+
+### Resource Management
+
+#### `coord_reserve_resources`
+Reserve system resources.
+
+**Parameters:**
+- `cpu_percent` (number): Required CPU %
+- `memory_mb` (number): Required memory in MB
+
+**Returns:** Reservation ID
+
+#### `coord_release_resources`
+Release reserved resources.
+
+**Parameters:**
+- `reservation_id` (string): Reservation to release
+
+## Usage Patterns
+
+### Pattern 1: Safe File Editing
+
+```typescript
+// Check for conflicts first
+const conflicts = await coord_check_conflicts("/path/to/file.py");
+if (conflicts.length > 0) {
+  console.log("Warning: Recent changes detected");
+}
+
+// Acquire lock
+await coord_acquire_lock("/path/to/file.py", "write");
+
+try {
+  // Make changes
+  await Edit({
+    file_path: "/path/to/file.py",
+    old_string: "...",
+    new_string: "..."
+  });
+
+  // Record change
+  await coord_record_change("/path/to/file.py", "refactored function");
+} finally {
+  // Always release
+  await coord_release_lock("/path/to/file.py");
+}
+```
+
+### Pattern 2: Task Distribution
+
+**Primary Instance (Orchestrator):**
+```typescript
+// Delegate tasks to other instances
+const taskIds = [];
+
+taskIds.push(await coord_delegate_task(
+  "implement",
+  "Add user authentication",
+  priority: 2
+));
+
+taskIds.push(await coord_delegate_task(
+  "test",
+  "Write integration tests",
+  priority: 5,
+  dependencies: [taskIds[0]] // Wait for auth implementation
+));
+
+taskIds.push(await coord_delegate_task(
+  "document",
+  "Update API documentation",
+  priority: 7
+));
+```
+
+**Worker Instance:**
+```typescript
+// Claim and execute task
+const task = await coord_claim_task(max_priority: 5);
+
+if (task) {
+  console.log(`Working on: ${task.task_description}`);
+
+  // Do the work...
+
+  await coord_complete_task(task.task_id, {
+    status: "success",
+    files_modified: ["auth.py", "tests/test_auth.py"]
+  });
+}
+```
+
+### Pattern 3: Inter-Agent Communication
+
+```typescript
+// Get active agents
+const agents = await coord_list_active_agents();
+
+// Broadcast announcement
+await coord_send_message(
+  "broadcast",
+  "coordination_request",
+  {
+    subject: "Code review needed",
+    file: "src/critical.py",
+    urgency: "high"
+  }
+);
+
+// Read responses
+const messages = await coord_read_messages();
+for (const msg of messages) {
+  if (msg.message_type === "coordination_response") {
+    console.log(`Response from ${msg.from_agent_id}:`, msg.content);
+  }
+}
+```
+
+## Best Practices
+
+### 1. Always Use File Locks
+Never modify files without acquiring locks first.
+
+### 2. Keep Heartbeats Active
+Update heartbeat every 30 seconds to stay registered.
+
+### 3. Handle Lock Timeouts
+Locks auto-expire after 5 minutes. Implement retry logic.
+
+### 4. Set Appropriate Priorities
+- **1-3**: Critical fixes, blockers
+- **4-6**: Normal features, enhancements
+- **7-10**: Nice-to-haves, documentation
+
+### 5. Clean Up Resources
+Always release locks and reservations, even on error.
+
+### 6. Check Before Acting
+Use `coord_check_conflicts()` before major changes.
+
+### 7. Declare Intentions
+Use `coord_declare_intention()` for visibility into upcoming operations.
+
+## Troubleshooting
+
+### Instance Not Appearing
+
+**Symptom:** Your instance doesn't show in active agents list.
+
+**Solutions:**
+1. Check MCP server connection: `claude mcp list`
+2. Manually register: `coord_register_agent("description")`
+3. Verify heartbeat: `coord_heartbeat()`
+
+### File Lock Timeout
+
+**Symptom:** Cannot acquire lock on file.
+
+**Solutions:**
+1. Check who has lock: `coord_check_conflicts(file_path)`
+2. Wait for lock release or timeout (5 min)
+3. Manually release stale locks via database
+
+### Tasks Not Being Claimed
+
+**Symptom:** Delegated tasks remain unclaimed.
+
+**Solutions:**
+1. Check worker instances are active
+2. Verify task priorities match worker's `max_priority`
+3. Check task dependencies are satisfied
+
+### Messages Not Received
+
+**Symptom:** Messages not appearing in `coord_read_messages()`.
+
+**Solutions:**
+1. Verify target agent_id is correct
+2. Use "broadcast" for all agents
+3. Check message hasn't been auto-archived
+
+## Performance Considerations
+
+### Heartbeat Frequency
+- Default: 60 seconds
+- Recommended: 30-45 seconds for active work
+- Reduce to 120s for background instances
+
+### Lock Duration
+- Acquire just before modification
+- Release immediately after
+- Maximum: 5 minutes (auto-expires)
+
+### Task Granularity
+- Break large tasks into smaller units
+- Each task: 5-30 minutes of work
+- Use dependencies for sequencing
+
+### Resource Reservations
+- Reserve only what you'll use
+- Release as soon as possible
+- Monitor system load level
+
+## Advanced Topics
+
+### Load Balancing
+
+System monitors CPU and memory to assign tasks intelligently:
+
+```typescript
+// Check system load
+const resources = await coord_get_resource_status();
+
+if (resources.load_level === "critical") {
+  // Only claim critical priority tasks
+  const task = await coord_claim_task(max_priority: 3);
+} else {
+  // Claim any available task
+  const task = await coord_claim_task();
+}
+```
+
+### Rollback Support
+
+Tasks support rollback data for error recovery:
+
+```typescript
+await coord_delegate_task(
+  "migrate_database",
+  "Apply schema migration v2.5",
+  priority: 1,
+  rollback_data: JSON.stringify({
+    backup_path: "/tmp/db_backup_20250102.sql",
+    rollback_script: "./rollback_v2.5.sh"
+  })
+);
+```
+
+### Custom Agent Capabilities
+
+Register specialized capabilities:
+
+```typescript
+await coord_register_agent(
+  "Security analysis agent",
+  capabilities: ["security", "code-review", "vulnerability-scanning"]
+);
+
+// Later, delegate to specific capability
+await coord_delegate_task(
+  "security_audit",
+  "Audit authentication flow",
+  priority: 2,
+  required_capabilities: ["security"]
+);
+```
+
+## Related Resources
+
+- [File Locking Protocol](/best-practices/file-locking)
+- [Task Distribution Strategies](/best-practices/task-distribution)
+- [Performance Optimization](/best-practices/performance)
+- [MCP Server Architecture](/introduction/architecture#coordination-layer)

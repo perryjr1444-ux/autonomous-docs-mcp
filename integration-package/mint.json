@@ -1,0 +1,135 @@
+{
+  "name": "Autonomous Docs MCP",
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
+  },
+  "favicon": "/favicon.png",
+  "colors": {
+    "primary": "#6366f1",
+    "light": "#818cf8",
+    "dark": "#4f46e5",
+    "background": {
+      "dark": "#0D1117"
+    }
+  },
+  "topbarLinks": [
+    {
+      "name": "GitHub",
+      "url": "https://github.com/perryjr1444/autonomous-docs-mcp"
+    }
+  ],
+  "topbarCtaButton": {
+    "name": "Get Started",
+    "url": "/introduction/quickstart"
+  },
+  "tabs": [
+    {
+      "name": "API Reference",
+      "url": "api-reference"
+    },
+    {
+      "name": "Guides",
+      "url": "guides"
+    },
+    {
+      "name": "Integrations",
+      "url": "integrations"
+    }
+  ],
+  "anchors": [
+    {
+      "name": "Documentation",
+      "icon": "book-open",
+      "url": "introduction"
+    },
+    {
+      "name": "Community",
+      "icon": "github",
+      "url": "https://github.com/perryjr1444/autonomous-docs-mcp/discussions"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Getting Started",
+      "pages": [
+        "introduction/overview",
+        "introduction/quickstart",
+        "introduction/architecture",
+        "introduction/installation"
+      ]
+    },
+    {
+      "group": "MCP Tools",
+      "pages": [
+        "tools/overview",
+        "tools/analyze-codebase",
+        "tools/generate-documentation",
+        "tools/validate-documentation",
+        "tools/sync-documentation",
+        "tools/generate-api-reference",
+        "tools/create-docs-config",
+        "tools/generate-changelog",
+        "tools/extract-code-examples"
+      ]
+    },
+    {
+      "group": "TypeScript API",
+      "pages": [
+        "api-reference/overview",
+        "api-reference/codebase-analyzer",
+        "api-reference/mdx-generator",
+        "api-reference/documentation-validator",
+        "api-reference/coordination-mcp",
+        "api-reference/types"
+      ]
+    },
+    {
+      "group": "Usage Guides",
+      "pages": [
+        "guides/initial-setup",
+        "guides/continuous-sync",
+        "guides/multi-repo",
+        "guides/api-first",
+        "guides/doc-driven-dev",
+        "guides/multi-agent-coordination"
+      ]
+    },
+    {
+      "group": "Integration Examples",
+      "pages": [
+        "integrations/github-actions",
+        "integrations/pre-commit-hooks",
+        "integrations/docker",
+        "integrations/ci-cd-pipelines"
+      ]
+    },
+    {
+      "group": "Best Practices",
+      "pages": [
+        "best-practices/maintenance",
+        "best-practices/security",
+        "best-practices/performance",
+        "best-practices/team-collaboration"
+      ]
+    },
+    {
+      "group": "Troubleshooting",
+      "pages": [
+        "troubleshooting/common-errors",
+        "troubleshooting/debug-procedures",
+        "troubleshooting/performance-issues",
+        "troubleshooting/mcp-connectivity"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "github": "https://github.com/perryjr1444/autonomous-docs-mcp",
+    "twitter": "https://twitter.com/your-handle"
+  },
+  "analytics": {
+    "ga4": {
+      "measurementId": "G-XXXXXXXXXX"
+    }
+  }
+}
