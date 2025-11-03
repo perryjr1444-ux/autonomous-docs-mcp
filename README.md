@@ -12,6 +12,32 @@ Autonomous documentation generation tool powered by Model Context Protocol (MCP)
 
 Autonomous Documentation MCP is an intelligent documentation system that understands your codebase and generates professional-grade documentation automatically. Built on the Model Context Protocol, it provides AI agents with powerful tools to analyze code structure, extract APIs, and create comprehensive documentation with zero manual configuration.
 
+```mermaid
+graph LR
+    subgraph "Documentation Workflow"
+        CODE[Codebase] --> ANALYZE[Analyze<br/>analyze_codebase]
+        ANALYZE --> GENERATE[Generate<br/>generate_documentation]
+        GENERATE --> VALIDATE[Validate<br/>validate_documentation]
+        VALIDATE --> SYNC[Sync<br/>sync_documentation]
+
+        CODE --> API[API Reference<br/>generate_api_reference]
+        CODE --> EXAMPLES[Extract Examples<br/>extract_code_examples]
+        CODE --> CHANGELOG[Generate Changelog<br/>generate_changelog]
+
+        API --> DOCS[Mintlify Docs]
+        EXAMPLES --> DOCS
+        CHANGELOG --> DOCS
+        GENERATE --> DOCS
+    end
+
+    style CODE fill:#667eea
+    style ANALYZE fill:#4ecdc4
+    style GENERATE fill:#95e1d3
+    style VALIDATE fill:#ffd93d
+    style SYNC fill:#6bcf7f
+    style DOCS fill:#764ba2
+```
+
 ### Why Autonomous Docs MCP?
 
 - **Zero Configuration**: Works out of the box with intelligent defaults
