@@ -63,7 +63,7 @@
     "fs-extra": "^11.2.0",
     "glob": "^10.3.10",
     "gray-matter": "^4.0.3",
-    "js-yaml": "^4.1.0",
+    "js-yaml": "^4.1.1",
     "markdown-it": "^14.0.0",
     "typescript": "^5.3.3"
   },
